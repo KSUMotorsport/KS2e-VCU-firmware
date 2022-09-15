@@ -13,17 +13,18 @@
 #include <VCUNeoPixelBullshitLMFAO.h>
 #include <Adafruit_MCP4725.h>
 #include "Adafruit_LEDBackpack.h"
+#include <PID_v2.h>
 // #include <drivers.h>
 //Pedalbox stuff
-#define BRAKE_ACTIVE 2300               // Threshold for brake pedal active  
+#define BRAKE_ACTIVE 2000               // Threshold for brake pedal active  
 #define MIN_ACCELERATOR_PEDAL_1 200    // Low accelerator implausibility threshold
-#define START_ACCELERATOR_PEDAL_1 940  // Position to start acceleration
-#define END_ACCELERATOR_PEDAL_1 1830    // Position to max out acceleration
-#define MAX_ACCELERATOR_PEDAL_1 2500    // High accelerator implausibility threshold
+#define START_ACCELERATOR_PEDAL_1 2233  // Position to start acceleration
+#define END_ACCELERATOR_PEDAL_1 2715    // Position to max out acceleration
+#define MAX_ACCELERATOR_PEDAL_1 4000   // High accelerator implausibility threshold
 #define MIN_ACCELERATOR_PEDAL_2 200    // Low accelerator implausibility threshold
-#define START_ACCELERATOR_PEDAL_2 650  // Position to start acceleration
-#define END_ACCELERATOR_PEDAL_2 1230    // Position to max out acceleration
-#define MAX_ACCELERATOR_PEDAL_2 2000    // High accelerator implausibility threshold
+#define START_ACCELERATOR_PEDAL_2 1477  // Position to start acceleration
+#define END_ACCELERATOR_PEDAL_2 1765    // Position to max out acceleration
+#define MAX_ACCELERATOR_PEDAL_2 4000    // High accelerator implausibility threshold
 #define HALF_ACCELERATOR_PEDAL_1 ((START_ACCELERATOR_PEDAL_1 + END_ACCELERATOR_PEDAL_1)/2)
 #define HALF_ACCELERATOR_PEDAL_2 ((START_ACCELERATOR_PEDAL_2 + END_ACCELERATOR_PEDAL_2)/2)
 #define DRIVER Matthew
@@ -31,15 +32,18 @@
 #define HT_DEBUG_EN
 //Torque Calculation Defines
 #define ALPHA 0.9772
-#define TORQUE_1 160   
+#define TORQUE_1 50   
 #define TORQUE_2 240
 //Pump speed
 #define PUMP_SPEED 2048
+#define TARGET_RPM 1000
 float accel1{},accel2{},brake1{},brake2{};
 Adafruit_7segment DashDisplay = Adafruit_7segment();
 ADC_SPI ADC(DEFAULT_SPI_CS, DEFAULT_SPI_SPEED);
 Metro mcControlTimer=Metro(50,1);
 Adafruit_MCP4725 dac;
+double Kp = 2, Ki = 5, Kd = 1;
+PID_v2 myPID(Kp, Ki, Kd, PID::Direct);
 class PM100Info{
     public:
     class MC_internal_states {

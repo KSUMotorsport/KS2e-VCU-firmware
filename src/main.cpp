@@ -27,9 +27,9 @@ Metro timer_debug_pedals=Metro(500);
 Metro pchgMsgTimer=Metro(100);
 Metro miscDebugTimer=Metro(1000);
 Metro timer_inverter_enable = Metro(2000); // Timeout failed inverter enable
-Metro timer_motor_controller_send = Metro(50);
+Metro timer_motor_controller_send = Metro(10);
 Metro timer_coloumb_count_send = Metro(1000);
-Metro timer_ready_sound = Metro(1000); // Time to play RTD sound
+Metro timer_ready_sound = Metro(100); // Time to play RTD sound
 Metro timer_can_update = Metro(100);
 Metro timer_sensor_can_update = Metro(5);
 Metro timer_restart_inverter = Metro(500, 1); // Allow the MCU to restart the inverter
@@ -145,6 +145,7 @@ void setup()
     digitalWrite(MC_RELAY,HIGH);
     mcu_status.set_inverter_powered(true);
     keepInverterAlive(0);
+    myPID.Start(0,0,TARGET_RPM);
     delay(500);
     set_state(MCU_STATE::TRACTIVE_SYSTEM_NOT_ACTIVE);
     mcu_status.set_max_torque(TORQUE_1);
@@ -176,13 +177,13 @@ void loop()
         // DashDisplay.print(BMS_packInfo[4]);
         // 
         DashLedscolorWipe(pixelColor);
-        Serial.println(accel1);
-        Serial.println(accel2);
+        // Serial.println(accel1);
+        // Serial.println(accel2);
         // Serial.print("rtd status: ");
         rtdButtonPressed=digitalRead(RTDbutton);
-        Serial.println(rtdButtonPressed);
-        Serial.print("brake status: ");
-        Serial.println(brake1);
+        // Serial.println(rtdButtonPressed);
+        // Serial.print("brake status: ");
+        // Serial.println(brake1);
         // if(digitalRead(TORQUEMODE)==LOW){
         //     mcu_status.set_max_torque(TORQUE_1);
         //     Serial.println("TOrque is set low");
@@ -440,9 +441,9 @@ inline void state_machine() {
                 }
                 else if
                 (
-                    (accel1 < ((END_ACCELERATOR_PEDAL_1 - START_ACCELERATOR_PEDAL_1)/20 + START_ACCELERATOR_PEDAL_1))
+                    (accel1 < ((END_ACCELERATOR_PEDAL_1 - START_ACCELERATOR_PEDAL_1)/10 + START_ACCELERATOR_PEDAL_1))
                     &&
-                    (accel2 < ((END_ACCELERATOR_PEDAL_2 - START_ACCELERATOR_PEDAL_2)/20 + START_ACCELERATOR_PEDAL_2))
+                    (accel2 < ((END_ACCELERATOR_PEDAL_2 - START_ACCELERATOR_PEDAL_2)/10 + START_ACCELERATOR_PEDAL_2))
                 )
                 {
                     mcu_status.set_no_accel_brake_implausability(true);
@@ -595,21 +596,32 @@ int calculate_torque() {
         calculated_torque = 0;
     }
     //#if DEBUG
+    const double input = pm100Speed.get_motor_speed();
+    Serial.print("RPM for the PID loop: ");
+    Serial.println(input);
+    const double output = myPID.Run(input);
+    int torque3 = map(output, 0, 255, 0, max_torque);
     if (timer_debug_raw_torque.check()) {
-        // Serial.print("TORQUE REQUEST DELTA PERCENT: "); // Print the % difference between the 2 accelerator sensor requests
-        // Serial.println(abs(torque1 - torque2) / (double) max_torque * 100);
-        // Serial.print("MCU RAW TORQUE: ");
-        // Serial.println(calculated_torque);
-        // Serial.print("TORQUE 1: ");
-        // Serial.println(torque1);
-        // Serial.print("TORQUE 2: ");
-        // Serial.println(torque2);
-        // Serial.print("Accel 1: ");
-        // Serial.println(accel1);
-        // Serial.print("Accel 2: ");
-        // Serial.println(accel2);
-        // Serial.print("Brake1 : ");
-        // Serial.println(brake1);
+        Serial.print("TORQUE REQUEST DELTA PERCENT: "); // Print the % difference between the 2 accelerator sensor requests
+        Serial.println(abs(torque1 - torque2) / (double) max_torque * 100);
+        Serial.print("MCU RAW TORQUE: ");
+        Serial.println(calculated_torque);
+        Serial.print("TORQUE 1: ");
+        Serial.println(torque1);
+        Serial.print("TORQUE 2: ");
+        Serial.println(torque2);
+        Serial.print("Accel 1: ");
+        Serial.println(accel1);
+        Serial.print("Accel 2: ");
+        Serial.println(accel2);
+        Serial.print("Brake1 : ");
+        Serial.println(brake1);
+        Serial.print("Torque 3:");
+        int torque3 = map(output, 0, 255, 0, max_torque);
+        Serial.println(torque3);
+    }
+    if(torque3<=calculated_torque){
+        calculated_torque=torque3;
     }
     // if(abs(pm100Speed.get_motor_speed())<=50){
     //     if(calculated_torque>=600){
@@ -617,6 +629,7 @@ int calculate_torque() {
     //     }
     // }
     //#endif
+
      return calculated_torque;
 }
 inline void read_pedal_values() {
